@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Glass Stepping Stones</title>
+    <style>
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+            background-color: lightblue;
+            height: 800px;
+            position: relative;
+            overflow: hidden;
+        }
+        .game-container.scaled {
+            transform-origin: top left;
+        }
+        .character {
+            width: 40px;
+            height: calc(126px * var(--height-multiplier));
+            position: absolute;
+            transform: scale(0.5);
+            transform-origin: top left;
+            z-index: 2;
+        }
+        .head {
+            width: 20px;
+            height: calc(21px * var(--height-multiplier));
+            border-radius: 50%;
+            position: absolute;
+            left: 10px;
+            top: 0;
+        }
+        .torso {
+            width: 20px;
+            height: calc(42px * var(--height-multiplier));
+            position: absolute;
+            left: 10px;
+            top: calc(21px * var(--height-multiplier));
+        }
+        .arm {
+            width: 8px;
+            height: calc(42px * var(--height-multiplier));
+            position: absolute;
+            top: calc(21px * var(--height-multiplier));
+        }
+        .left-arm { left: 2px; }
+        .right-arm { left: 30px; }
+        .leg {
+            width: 8px;
+            height: calc(63px * var(--height-multiplier));
+            position: absolute;
+            top: calc(63px * var(--height-multiplier));
+        }
+        .left-leg { left: 10px; }
+        .right-leg { left: 22px; }
+        .shoe {
+            width: 8px;
+            height: calc(8px * var(--height-multiplier));
+            position: absolute;
+            top: calc(118px * var(--height-multiplier));
+        }
+        .left-shoe { left: 10px; }
+        .right-shoe { left: 22px; }
+        .platform {
+            width: 100px;
+            height: 20px;
+            background-color: #40e0d0;
+            position: absolute;
+            transform: skew(-20deg);
+            box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+        .start-platform {
+            width: 150px;
+            height: 70px;
+            background-color: white;
+            position: absolute;
+            transform: skew(-20deg);
+            box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+        .shadow {
+            width: 20px;
+            height: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            position: absolute;
+            border-radius: 50%;
+            z-index: 2;
+        }
+        .player-indicator {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid #A5C563;
+            position: absolute;
+            z-index: 3;
+            transition: left 0.2s ease-out, top 0.2s ease-out;
+            transform: rotate(180deg);
+        }
+        #player-number {
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        padding: 10px;
+        font-family: "Arial", sans-serif; /* Changed to Arial */
+        font-size: 40px;
+        color: #FF00FF; /* Neon pink color */
+        -webkit-text-stroke: 1px black; /* Black outline */
+        text-stroke: 1px black; /* Standard outline (for future support) */
+        text-shadow: 3px 3px 4px rgba(255, 255, 255, 0.8); /* White shadow */
+        z-index: 3;
+    }
+        #player-number.scaled, #death-announcement.scaled {
+            transform-origin: top left;
+        }
+        #death-announcement {
+            position: absolute;
+            top: 30px;
+            left: 33%;
+            transform: translateX(-50%);
+            padding: 10px;
+            font-family: "Times New Roman", serif;
+            font-size: 50px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 3;
+        }
+        .blood-strand {
+            position: absolute;
+            background-color: rgb(200, 0, 0);
+            z-index: 0;
+        }
+        .blood-droplet {
+            position: absolute;
+            background-color: rgb(200, 0, 0);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        .blood-splatter {
+            position: absolute;
+            background-color: rgb(200, 0, 0);
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game" class="game-container" style="--height-multiplier: 0.8;"></div>
+    <div id="mouse-position" style="position: absolute; top: 0; left: 0; color: black; padding: 5px; background-color: rgba(255, 255, 255, 0.7); z-index: 3;"></div>
+    <div id="player-number"></div>
+    <div id="death-announcement"></div>
+
+    <script>
+const totalPlayers = 16;
+
+const clothingColors = ['#8B4513', '#556B2F', '#4682B4', '#708090', '#6B8E23', '#483D8B', '#696969', '#5F9EA0', '#778899'];
+const skinTones = ['#f1d4af', '#e8c39e', '#e0b896', '#d8ae84', '#d1a372'];
+
+function getRandomColor(colors) {
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function generateUniqueNumbers(count) {
+    const numbers = new Set();
+    while (numbers.size < count) {
+        const num = Math.floor(Math.random() * 456) + 1;
+        numbers.add(num.toString().padStart(3, '0'));
+    }
+    return Array.from(numbers);
+}
+
+function createCharacter(number) {
+    const character = document.createElement('div');
+    character.className = 'character';
+    const armColor = getRandomColor(clothingColors);
+    const legColor = getRandomColor(clothingColors);
+    const shoeColor = getRandomColor(clothingColors);
+    character.innerHTML = `
+        <div class="head" style="background-color: ${getRandomColor(skinTones)};"></div>
+        <div class="torso" style="background-color: ${getRandomColor(clothingColors)};"></div>
+        <div class="arm left-arm" style="background-color: ${armColor};"></div>
+        <div class="arm right-arm" style="background-color: ${armColor};"></div>
+        <div class="leg left-leg" style="background-color: ${legColor};"></div>
+        <div class="leg right-leg" style="background-color: ${legColor};"></div>
+        <div class="shoe left-shoe" style="background-color: ${shoeColor};"></div>
+        <div class="shoe right-shoe" style="background-color: ${shoeColor};"></div>
+    `;
+    return { element: character, number };
+}
+
+const gameContainer = document.getElementById('game');
+const characters = [];
+const shards = [];
+const bloodParticles = [];
+const playerNumberDisplay = document.getElementById('player-number');
+const deathAnnouncement = document.getElementById('death-announcement');
+
+const playerIndicator = document.createElement('div');
+playerIndicator.className = 'player-indicator';
+gameContainer.appendChild(playerIndicator);
+
+let currentPlayerIndex = totalPlayers - 1;
+const playerNumbers = generateUniqueNumbers(totalPlayers);
+
+class BloodParticle {
+    constructor(x, y, width, height, velocityX, velocityY, type, mass) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.velocityX = velocityX;
+        this.velocityY = velocityY;
+        this.type = type;
+        this.mass = mass;
+        this.initialMass = mass;
+        this.isSettled = false;
+        this.isRunningDown = false;
+        this.element = document.createElement('div');
+        this.element.style.position = 'absolute';
+        this.element.style.left = `${x}px`;
+        this.element.style.top = `${y}px`;
+        this.element.style.width = `${width}px`;
+        this.element.style.height = `${height}px`;
+        this.element.style.zIndex = '0';
+
+        if (type === 'strand') {
+            this.element.className = 'blood-strand';
+            this.element.style.transform = `rotate(${Math.random() * 360}deg)`;
+        } else if (type === 'droplet') {
+            this.element.className = 'blood-droplet';
+        } else if (type === 'splatter') {
+            this.element.className = 'blood-splatter';
+        }
+
+        const redShade = 150 + Math.random() * 50;
+        this.element.style.backgroundColor = `rgb(${redShade}, 0, 0)`;
+        gameContainer.appendChild(this.element);
+    }
+
+    update() {
+        if (this.isSettled) {
+            if (this.isRunningDown) {
+                this.y += this.velocityY;
+                this.velocityY *= 0.95;
+                this.mass *= 0.98;
+                this.element.style.opacity = this.mass / this.initialMass;
+
+                this.element.style.top = `${this.y}px`;
+
+                if (this.velocityY < 0.05 || this.mass < 0.1) {
+                    this.isRunningDown = false;
+                    this.velocityY = 0;
+                    this.element.style.height = `${this.height * 1.5}px`;
+                    this.element.style.opacity = '0.7';
+                }
+            }
+            return;
+        }
+
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        this.velocityY += gravity;
+        this.velocityX *= 0.98;
+
+        this.element.style.left = `${this.x}px`;
+        this.element.style.top = `${this.y}px`;
+
+        const wallY = 800;
+        if (this.y + this.height >= wallY && !this.isSettled) {
+            if (this.type === 'strand' || this.type === 'splatter') {
+                this.y = wallY - this.height;
+                this.velocityY = 0.5;
+                this.velocityX = 0;
+                this.isSettled = true;
+                this.isRunningDown = true;
+                if (this.type === 'strand') {
+                    this.element.style.transform = 'rotate(90deg)';
+                }
+            } else if (this.type === 'droplet') {
+                this.y = wallY - this.height;
+                this.velocityY = 0;
+                this.velocityX = 0;
+                this.isSettled = true;
+                this.element.style.width = `${this.width * 1.2}px`;
+                this.element.style.height = `${this.height * 0.8}px`;
+                this.element.style.opacity = '0.7';
+            }
+        }
+
+        if (this.x < -50 || this.x > totalWidth + 50) {
+            this.isSettled = true;
+            this.element.remove();
+        }
+    }
+}
+
+function createBloodEffect(x, y) {
+    const particleCount = 30;
+    const strandCount = 10;
+    const dropletCount = 10;
+    const splatterCount = 10;
+
+    for (let i = 0; i < strandCount; i++) {
+        const width = 2 + Math.random() * 2;
+        const height = 10 + Math.random() * 10;
+        const velocityX = (Math.random() - 0.5) * 8;
+        const velocityY = -Math.random() * 4 - 2;
+        const mass = 1;
+        const particle = new BloodParticle(x, y, width, height, velocityX, velocityY, 'strand', mass);
+        bloodParticles.push(particle);
+    }
+
+    for (let i = 0; i < dropletCount; i++) {
+        const size = 4 + Math.random() * 4;
+        const velocityX = (Math.random() - 0.5) * 2;
+        const velocityY = -Math.random() * 2;
+        const mass = 1;
+        const particle = new BloodParticle(x, y, size, size, velocityX, velocityY, 'droplet', mass);
+        bloodParticles.push(particle);
+    }
+
+    for (let i = 0; i < splatterCount; i++) {
+        const width = 3 + Math.random() * 3;
+        const height = 5 + Math.random() * 5;
+        const velocityX = (Math.random() - 0.5) * 6;
+        const velocityY = -Math.random() * 3 - 1;
+        const mass = 1 + Math.random() * 2;
+        const particle = new BloodParticle(x, y, width, height, velocityX, velocityY, 'splatter', mass);
+        bloodParticles.push(particle);
+    }
+}
+
+class Shard {
+    constructor(x, y, width, height, velocityX, velocityY, rotation, rotationSpeed, clipPath) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = height;
+        this.velocityX = velocityX;
+        this.velocityY = velocityY;
+        this.rotation = rotation;
+        this.rotationSpeed = rotationSpeed;
+        this.area = width * height;
+        this.element = document.createElement('div');
+        this.element.style.position = 'absolute';
+        this.element.style.left = `${x}px`;
+        this.element.style.top = `${y}px`;
+        this.element.style.width = `${width}px`;
+        this.element.style.height = `${height}px`;
+        this.element.style.clipPath = clipPath;
+        this.element.style.backgroundColor = 'rgba(64, 224, 208, 0.8)';
+        this.element.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+        this.element.style.transform = `rotate(${this.rotation}deg)`;
+        this.element.style.transformOrigin = 'center center';
+        this.element.style.zIndex = '0';
+        gameContainer.appendChild(this.element);
+        this.isSmall = this.area < 100;
+        this.wiggleFrames = this.isSmall ? Math.floor(Math.random() * 3) + 1 : 0;
+        this.skipCount = this.isSmall ? 0 : Math.floor(Math.random() * 2) + 1;
+        this.isSettled = false;
+    }
+
+    update() {
+        if (this.isSettled) {
+            if (this.wiggleFrames > 0) {
+                this.x += (Math.random() - 0.5) * 2;
+                this.element.style.left = `${this.x}px`;
+                this.wiggleFrames--;
+            }
+            this.rotationSpeed *= 0.95;
+            this.rotation += this.rotationSpeed;
+            this.element.style.transform = `rotate(${this.rotation}deg)`;
+            return;
+        }
+
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        this.velocityY += gravity;
+        this.velocityX *= 0.98;
+
+        this.rotation += this.rotationSpeed;
+        this.element.style.transform = `rotate(${this.rotation}deg)`;
+
+        this.element.style.left = `${this.x}px`;
+        this.element.style.top = `${this.y}px`;
+
+        const deathY = 770 + Math.random() * 30;
+        if (this.y >= deathY) {
+            this.y = deathY;
+            if (this.skipCount > 0) {
+                const velocityRetention = 0.9 - (this.area / 300) * 0.2;
+                this.velocityX *= velocityRetention;
+                this.velocityY = -this.velocityY * 0.13;
+                this.rotationSpeed *= 1.5;
+                this.skipCount--;
+            } else {
+                this.isSettled = true;
+                this.velocityX = 0;
+                this.velocityY = 0;
+            }
+        }
+    }
+}
+
+function createShards(platform, playerX) {
+    const platformX = parseInt(platform.style.left);
+    const platformY = parseInt(platform.style.top);
+    const platformWidth = 90;
+    const platformHeight = 20;
+
+    const shatterCenterX = playerX - platformX;
+    const shatterCenterY = platformHeight / 2;
+
+    const shardCount = 18;
+    const splitPointsX = [0];
+    const splitPointsY = [0];
+
+    for (let i = 0; i < shardCount / 2 - 1; i++) {
+        splitPointsX.push(Math.random() * platformWidth);
+    }
+    splitPointsX.push(platformWidth);
+    splitPointsX.sort((a, b) => a - b);
+
+    for (let i = 0; i < 2; i++) {
+        splitPointsY.push(Math.random() * platformHeight);
+    }
+    splitPointsY.push(platformHeight);
+    splitPointsY.sort((a, b) => a - b);
+
+    for (let row = 0; row < splitPointsY.length - 1; row++) {
+        for (let col = 0; col < splitPointsX.length - 1; col++) {
+            const shardX = platformX + splitPointsX[col];
+            const shardY = platformY + splitPointsY[row];
+            const shardWidth = splitPointsX[col + 1] - splitPointsX[col];
+            const shardHeight = splitPointsY[row + 1] - splitPointsY[row];
+
+            const vertices = [
+                { x: 0, y: 0 },
+                { x: shardWidth, y: 0 },
+                { x: shardWidth, y: shardHeight },
+                { x: 0, y: shardHeight }
+            ];
+
+            const triangles = [
+                [vertices[0], vertices[1], vertices[3]],
+                [vertices[1], vertices[2], vertices[3]]
+            ];
+
+            triangles.forEach(triangle => {
+                const clipPath = `polygon(
+                    ${(triangle[0].x / shardWidth) * 100}% ${(triangle[0].y / shardHeight) * 100}%,
+                    ${(triangle[1].x / shardWidth) * 100}% ${(triangle[1].y / shardHeight) * 100}%,
+                    ${(triangle[2].x / shardWidth) * 100}% ${(triangle[2].y / shardHeight) * 100}%
+                )`;
+
+                const shardCenterX = shardX + shardWidth / 2;
+                const shardCenterY = shardY + shardHeight / 2;
+                const dx = (shardCenterX - platformX - shatterCenterX) / platformWidth;
+                const dy = (shardCenterY - platformY - shatterCenterY) / platformHeight;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const force = 1.5 * (1 - distance);
+                const velocityX = dx * force * (Math.random() * 2 + 1);
+                const velocityY = dy * force * (Math.random() * 1 + 0.5) - 1;
+
+                const rotation = Math.random() * 360;
+                const rotationSpeed = (Math.random() - 0.5) * 5;
+
+                const shard = new Shard(shardX, shardY, shardWidth, shardHeight, velocityX, velocityY, rotation, rotationSpeed, clipPath);
+                shards.push(shard);
+            });
+        }
+    }
+}
+
+const startPlatform = document.createElement('div');
+startPlatform.className = 'start-platform';
+startPlatform.style.left = '-15px';
+startPlatform.style.top = '200px';
+startPlatform.dataset.breakable = 'false';
+gameContainer.appendChild(startPlatform);
+
+const rows = Math.ceil(totalPlayers / 4);
+const charactersPerRow = 4;
+const rowHeight = 20;
+const colWidth = 30;
+const skewAngle = -20;
+const horizontalOffsetPerRow = rowHeight * Math.tan(skewAngle * Math.PI / 180);
+
+for (let i = 0; i < totalPlayers; i++) {
+    const row = Math.floor(i / charactersPerRow);
+    const col = i % charactersPerRow;
+
+    const baseX = 1 + 30 + col * colWidth;
+    const baseY = 200 + row * rowHeight;
+    const xOffset = row * horizontalOffsetPerRow;
+
+    const { element: character, number } = createCharacter(playerNumbers[i]);
+    character.style.position = 'absolute';
+    character.style.left = `${baseX + xOffset}px`;
+    character.style.top = `${baseY - (126 * 0.8 * 0.5)}px`;
+    gameContainer.appendChild(character);
+
+    const shadow = document.createElement('div');
+    shadow.className = 'shadow';
+    gameContainer.appendChild(shadow);
+
+    const charObject = { 
+        element: character, 
+        x: baseX + xOffset,
+        y: baseY - (126 * 0.8 * 0.5),
+        velocityY: 0, 
+        isJumping: false, 
+        jumpStartY: baseY - (126 * 0.8 * 0.5),
+        shadow: shadow,
+        indicator: null,
+        isDead: false,
+        deathY: 0,
+        number: number,
+        isFallingPastShadow: false,
+        hasPassed: false
+    };
+
+    shadow.style.left = `${baseX + xOffset}px`;
+    shadow.style.top = `${baseY}px`;
+    shadow.style.display = 'block';
+    shadow.style.clipPath = 'none';
+
+    if (i === totalPlayers - 1) {
+        charObject.indicator = playerIndicator;
+        playerIndicator.style.transition = 'none';
+        playerIndicator.style.left = `${(baseX + xOffset) + (40 * 0.5) / 2 - 7.5}px`;
+        playerIndicator.style.top = `${(baseY - (126 * 0.8 * 0.5)) - 16}px`;
+        playerNumberDisplay.textContent = `Player #${number}`;
+    }
+
+    characters.push(charObject);
+}
+
+let lastPaneLeft = 0;
+let lastPaneTop = 0;
+let totalWidth = 0;
+
+function generatePlatforms() {
+    const platformRows = 2 + totalPlayers;
+    const platformWidth = 90;
+    const horizontalIncrement = 110;
+    const verticalOffset = 50;
+
+    let currentLeft = 170;
+    let currentTop = 200;
+
+    for (let i = 0; i < platformRows; i++) {
+        const platform1 = document.createElement('div');
+        platform1.className = 'platform';
+        platform1.style.top = `${currentTop}px`;
+        platform1.style.left = `${currentLeft}px`;
+        platform1.style.width = `${platformWidth}px`;
+        platform1.style.transform = 'skew(-20deg)';
+
+        const platform2 = document.createElement('div');
+        platform2.className = 'platform';
+        platform2.style.top = `${currentTop + verticalOffset}px`;
+        platform2.style.left = `${currentLeft}px`;
+        platform2.style.width = `${platformWidth}px`;
+        platform2.style.transform = 'skew(-20deg)';
+
+        if (Math.random() < 0.5) {
+            platform1.dataset.breakable = 'true';
+        } else {
+            platform2.dataset.breakable = 'true';
+        }
+
+        gameContainer.appendChild(platform1);
+        gameContainer.appendChild(platform2);
+
+        currentLeft += horizontalIncrement;
+    }
+
+    lastPaneLeft = currentLeft;
+    lastPaneTop = currentTop;
+
+    const endPlatform = document.createElement('div');
+    endPlatform.className = 'start-platform';
+    endPlatform.style.left = `${lastPaneLeft + 20}px`;
+    endPlatform.style.top = `${lastPaneTop}px`;
+    endPlatform.dataset.breakable = 'false';
+    gameContainer.appendChild(endPlatform);
+
+    const platformRowsTotal = 2 + totalPlayers;
+    totalWidth = 135 + (platformRowsTotal * 110) + 20 + 150;
+    const targetWidth = 1600;
+    const scale = Math.min(1, targetWidth / totalWidth);
+
+    gameContainer.style.width = `${totalWidth}px`;
+    gameContainer.style.transform = `scale(${scale})`;
+    gameContainer.classList.add('scaled');
+
+    const counterScale = 1 / scale;
+    playerNumberDisplay.style.transform = `scale(${counterScale})`;
+    playerNumberDisplay.classList.add('scaled');
+    deathAnnouncement.style.transform = `scale(${counterScale})`;
+    deathAnnouncement.classList.add('scaled');
+
+    playerNumberDisplay.style.left = `${30 * scale}px`;
+    playerNumberDisplay.style.top = `${30 * scale}px`;
+    deathAnnouncement.style.left = `${(33 * scale)}%`;
+}
+
+generatePlatforms();
+
+const platforms = document.querySelectorAll('.platform');
+const gravity = 0.08;
+const jumpVelocity = -3.8;
+const speed = 1;
+const keys = { w: false, a: false, s: false, d: false };
+
+const deathQueue = [];
+let isAnnouncing = false;
+
+function announceEvent(eventType, number) {
+    deathQueue.push({ type: eventType, number });
+    if (!isAnnouncing) processEventQueue();
+}
+
+function processEventQueue() {
+    if (deathQueue.length === 0) {
+        isAnnouncing = false;
+        return;
+    }
+
+    isAnnouncing = true;
+    const event = deathQueue.shift();
+    if (event.type === 'death') {
+        deathAnnouncement.textContent = `Player #${event.number} Eliminated`;
+    } else if (event.type === 'win') {
+        deathAnnouncement.textContent = `Player #${event.number}, Pass`;
+    }
+    
+    setTimeout(() => {
+        deathAnnouncement.style.opacity = '1';
+    }, 0);
+
+    setTimeout(() => {
+        deathAnnouncement.style.opacity = '0';
+    }, 3500);
+
+    setTimeout(() => {
+        processEventQueue();
+    }, 4200);
+}
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'p' || e.key === 'P') {
+        resetGame();
+        return;
+    }
+    
+    if (e.key === 'Tab') {
+        e.preventDefault();
+        characters[currentPlayerIndex].indicator = null;
+        
+        currentPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+        while (characters[currentPlayerIndex].isDead || characters[currentPlayerIndex].hasPassed) {
+            currentPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+        }
+        
+        characters[currentPlayerIndex].indicator = playerIndicator;
+        
+        characters[currentPlayerIndex].isJumping = false;
+        characters[currentPlayerIndex].isFallingFromWalk = false;
+        characters[currentPlayerIndex].isFallingPastShadow = false;
+        characters[currentPlayerIndex].velocityY = 0;
+
+        const currentShadow = characters[currentPlayerIndex].shadow;
+        currentShadow.style.left = `${characters[currentPlayerIndex].x}px`;
+        currentShadow.style.top = `${characters[currentPlayerIndex].y + (126 * 0.8 * 0.5)}px`;
+        currentShadow.style.display = 'block';
+        currentShadow.style.clipPath = 'none';
+        
+        playerIndicator.style.transition = 'left 0.2s ease-out, top 0.2s ease-out';
+        playerIndicator.style.display = 'block';
+        playerIndicator.style.left = `${characters[currentPlayerIndex].x + (40 * 0.5) / 2 - 7.5}px`;
+        playerIndicator.style.top = `${characters[currentPlayerIndex].y - 16}px`;
+        playerNumberDisplay.textContent = `Player #${characters[currentPlayerIndex].number}`;
+        playerIndicator.addEventListener('transitionend', () => {
+            playerIndicator.style.transition = 'none';
+        }, { once: true });
+    } else if (e.key === ' ' && !characters[currentPlayerIndex].isJumping && characters[currentPlayerIndex].velocityY === 0) {
+        characters[currentPlayerIndex].isJumping = true;
+        characters[currentPlayerIndex].velocityY = jumpVelocity;
+        characters[currentPlayerIndex].jumpStartY = characters[currentPlayerIndex].y;
+    } else {
+        keys[e.key] = true;
+    }
+});
+
+document.addEventListener('keyup', (e) => {
+    keys[e.key] = false;
+});
+
+function resetGame() {
+    characters.forEach(char => char.element.remove());
+    document.querySelectorAll('.platform').forEach(p => p.remove());
+    document.querySelectorAll('.start-platform').forEach(p => p.remove());
+    document.querySelectorAll('.blood-strand').forEach(b => b.remove());
+    document.querySelectorAll('.blood-droplet').forEach(b => b.remove());
+    document.querySelectorAll('.blood-splatter').forEach(b => b.remove());
+    shards.forEach(shard => shard.element.remove());
+    bloodParticles.length = 0;
+    shards.length = 0;
+    const gameOver = document.getElementById('game-over');
+    if (gameOver) gameOver.remove();
+    const gamePassed = document.getElementById('game-passed');
+    if (gamePassed) gamePassed.remove();
+
+    characters.length = 0;
+    deathQueue.length = 0;
+    isAnnouncing = false;
+    deathAnnouncement.style.opacity = '0';
+
+    let gameIndicator = document.querySelector('.player-indicator');
+    if (!gameIndicator) {
+        gameIndicator = document.createElement('div');
+        gameIndicator.className = 'player-indicator';
+        gameContainer.appendChild(gameIndicator);
+    }
+
+    currentPlayerIndex = totalPlayers - 1;
+    const newPlayerNumbers = generateUniqueNumbers(totalPlayers);
+
+    const newStartPlatform = document.createElement('div');
+    newStartPlatform.className = 'start-platform';
+    newStartPlatform.style.left = '-15px';
+    newStartPlatform.style.top = '200px';
+    newStartPlatform.dataset.breakable = 'false';
+    gameContainer.appendChild(newStartPlatform);
+
+    for (let i = 0; i < totalPlayers; i++) {
+        const row = Math.floor(i / charactersPerRow);
+        const col = i % charactersPerRow;
+
+        const baseX = 1 + 30 + col * colWidth;
+        const baseY = 200 + row * rowHeight;
+        const xOffset = row * horizontalOffsetPerRow;
+
+        const { element: character, number } = createCharacter(newPlayerNumbers[i]);
+        character.style.left = `${baseX + xOffset}px`;
+        character.style.top = `${baseY - (126 * 0.8 * 0.5)}px`;
+        gameContainer.appendChild(character);
+
+        const shadow = document.createElement('div');
+        shadow.className = 'shadow';
+        gameContainer.appendChild(shadow);
+
+        const charObject = { 
+            element: character, 
+            x: baseX + xOffset,
+            y: baseY - (126 * 0.8 * 0.5),
+            velocityY: 0, 
+            isJumping: false, 
+            jumpStartY: baseY - (126 * 0.8 * 0.5),
+            shadow: shadow,
+            indicator: null,
+            isDead: false,
+            deathY: 0,
+            number: number,
+            isFallingPastShadow: false,
+            hasPassed: false
+        };
+
+        shadow.style.left = `${baseX + xOffset}px`;
+        shadow.style.top = `${baseY}px`;
+        shadow.style.display = 'block';
+        shadow.style.clipPath = 'none';
+
+        if (i === totalPlayers - 1) {
+            charObject.indicator = gameIndicator;
+            gameIndicator.style.transition = 'none';
+            gameIndicator.style.left = `${(baseX + xOffset) + (40 * 0.5) / 2 - 7.5}px`;
+            gameIndicator.style.top = `${(baseY - (126 * 0.8 * 0.5)) - 16}px`;
+            gameIndicator.style.display = 'block';
+            playerNumberDisplay.textContent = `Player #${number}`;
+        }
+
+        characters.push(charObject);
+    }
+
+    generatePlatforms();
+}
+
+const targetFPS = 120;
+const timeStep = 1000 / targetFPS;
+let lastTime = performance.now();
+let accumulator = 0;
+
+function update() {
+    const currentTime = performance.now();
+    const deltaTime = currentTime - lastTime;
+    lastTime = currentTime;
+    accumulator += deltaTime;
+
+    while (accumulator >= timeStep) {
+        characters.forEach((char, index) => {
+            let newX = char.x;
+            let newY = char.y;
+
+            if (char.isDead || char.y > char.jumpStartY + 580) {
+                if (!char.isDead && !char.hasPassed) {
+                    char.isDead = true;
+                    const deathY = 770 + Math.random() * 30;
+                    char.deathY = deathY - (126 * 0.8 * 0.5) / 2;
+                    createBloodEffect(char.x + (40 * 0.5) / 2, deathY);
+                    char.element.style.transform = 'scale(0.5) rotate(90deg)';
+                    char.element.style.transformOrigin = 'center center';
+                    char.element.style.left = `${char.x}px`;
+                    char.element.style.top = `${char.deathY}px`;
+                    announceEvent('death', char.number);
+                    char.shadow.style.display = 'none';
+                    if (index === currentPlayerIndex) {
+                        char.indicator.style.display = 'none';
+                        characters[currentPlayerIndex].indicator = null;
+
+                        let allDeadOrPassed = characters.every(c => c.isDead || c.hasPassed);
+                        if (!allDeadOrPassed) {
+                            currentPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+                            while (characters[currentPlayerIndex].isDead || characters[currentPlayerIndex].hasPassed) {
+                                currentPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+                            }
+                            characters[currentPlayerIndex].indicator = playerIndicator;
+
+                            const currentShadow = characters[currentPlayerIndex].shadow;
+                            currentShadow.style.left = `${characters[currentPlayerIndex].x}px`;
+                            currentShadow.style.top = `${characters[currentPlayerIndex].y + (126 * 0.8 * 0.5)}px`;
+                            currentShadow.style.display = 'block';
+                            currentShadow.style.clipPath = 'none';
+
+                            playerIndicator.style.transition = 'left 0.2s ease-out, top 0.2s ease-out';
+                            playerIndicator.style.display = 'block';
+                            playerIndicator.style.left = `${characters[currentPlayerIndex].x + (40 * 0.5) / 2 - 7.5}px`;
+                            playerIndicator.style.top = `${characters[currentPlayerIndex].y - 16}px`;
+                            playerNumberDisplay.textContent = `Player #${characters[currentPlayerIndex].number}`;
+                            playerIndicator.addEventListener('transitionend', () => {
+                                playerIndicator.style.transition = 'none';
+                            }, { once: true });
+                        } else if (characters.every(c => c.isDead)) {
+                            const gameOver = document.createElement('div');
+                            gameOver.id = 'game-over';
+                            gameOver.textContent = 'GAME OVER!';
+                            gameOver.style.position = 'absolute';
+                            gameOver.style.top = '52.5%';
+                            gameOver.style.left = '51.1%';
+                            gameOver.style.transform = 'translate(-50%, -50%)';
+                            gameOver.style.fontSize = '430px';
+                            gameOver.style.fontFamily = '"Bebas Neue", Impact, sans-serif';
+                            gameOver.style.fontWeight = 'bold';
+                            gameOver.style.color = '#FFC107';
+                            gameOver.style.letterSpacing = '10px';
+                            gameOver.style.textShadow = '5px 5px 10px rgba(0, 0, 0, 0.7)';
+                            gameOver.style.zIndex = '10';
+                            gameOver.style.transform = 'translate(-50%, -50%) scaleX(2.1)';
+                            gameContainer.appendChild(gameOver);
+                        }
+                    }
+                }
+                return;
+            }
+
+            const isPlayer = index === currentPlayerIndex;
+            if (isPlayer) {
+                if (keys.a) newX -= speed;
+                if (keys.d) newX += speed;
+                if (keys.w) char.shadow.style.top = `${parseInt(char.shadow.style.top) - speed}px`;
+                if (keys.s) char.shadow.style.top = `${parseInt(char.shadow.style.top) + speed}px`;
+            }
+
+            const shadowTop = parseInt(char.shadow.style.top || (200 + (126 * 0.8 * 0.5)));
+            const charBottom = char.y + (126 * 0.8 * 0.5);
+            char.shadow.style.left = `${newX}px`;
+            const shadowLeft = parseInt(char.shadow.style.left);
+            const shadowCenter = shadowLeft + 10;
+            const feetZoneLeft = shadowCenter - 6;
+            const feetZoneRight = shadowCenter + 6;
+
+            char.shadow.style.clipPath = 'none';
+            char.shadow.style.display = 'block';
+
+            let shadowOnPlatform = false;
+            let landedPlatform = null;
+
+            const startPlatformLeft = -15;
+            const startPlatformRight = 135;
+            const startPlatformTop = 200;
+            const startPlatformBottom = 270;
+
+            const endPlatformLeft = lastPaneLeft + 20;
+            const endPlatformRight = endPlatformLeft + 150;
+            const endPlatformTop = lastPaneTop;
+            const endPlatformBottom = endPlatformTop + 70;
+
+            if (shadowTop >= startPlatformTop && shadowTop <= startPlatformBottom &&
+                feetZoneRight >= startPlatformLeft && feetZoneLeft <= startPlatformRight) {
+                shadowOnPlatform = true;
+                landedPlatform = startPlatform;
+            }
+
+            if (!shadowOnPlatform && shadowTop >= endPlatformTop && shadowTop <= endPlatformBottom &&
+                feetZoneRight >= endPlatformLeft && feetZoneLeft <= endPlatformRight) {
+                shadowOnPlatform = true;
+                landedPlatform = document.querySelector('.start-platform[style*="left: ' + (lastPaneLeft + 20) + 'px"]');
+                if (!char.hasPassed && charBottom >= shadowTop && char.velocityY >= 0) {
+                    char.hasPassed = true;
+                    announceEvent('win', char.number);
+                    if (isPlayer) {
+                        char.indicator.style.display = 'none';
+                        characters[currentPlayerIndex].indicator = null;
+
+                        let allDeadOrPassed = characters.every(c => c.isDead || c.hasPassed);
+                        if (!allDeadOrPassed) {
+                            currentPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+                            while (characters[currentPlayerIndex].isDead || characters[currentPlayerIndex].hasPassed) {
+                                currentPlayerIndex = (currentPlayerIndex - 1 + totalPlayers) % totalPlayers;
+                            }
+                            characters[currentPlayerIndex].indicator = playerIndicator;
+
+                            const currentShadow = characters[currentPlayerIndex].shadow;
+                            currentShadow.style.left = `${characters[currentPlayerIndex].x}px`;
+                            currentShadow.style.top = `${characters[currentPlayerIndex].y + (126 * 0.8 * 0.5)}px`;
+                            currentShadow.style.display = 'block';
+                            currentShadow.style.clipPath = 'none';
+
+                            playerIndicator.style.transition = 'left 0.2s ease-out, top 0.2s ease-out';
+                            playerIndicator.style.display = 'block';
+                            playerIndicator.style.left = `${characters[currentPlayerIndex].x + (40 * 0.5) / 2 - 7.5}px`;
+                            playerIndicator.style.top = `${characters[currentPlayerIndex].y - 16}px`;
+                            playerNumberDisplay.textContent = `Player #${characters[currentPlayerIndex].number}`;
+                            playerIndicator.addEventListener('transitionend', () => {
+                                playerIndicator.style.transition = 'none';
+                            }, { once: true });
+                        }
+                    }
+
+                    const aliveCharacters = characters.filter(c => !c.isDead);
+                    if (aliveCharacters.every(c => c.hasPassed)) {
+                        const gamePassed = document.createElement('div');
+                        gamePassed.id = 'game-passed';
+                        gamePassed.textContent = 'GAME PASSED!';
+                        gamePassed.style.position = 'absolute';
+                        gamePassed.style.top = '52.5%';
+                        gamePassed.style.left = '51.1%';
+                        gamePassed.style.transform = 'translate(-50%, -50%)';
+                        gamePassed.style.fontSize = '430px';
+                        gamePassed.style.fontFamily = '"Bebas Neue", Impact, sans-serif';
+                        gamePassed.style.fontWeight = 'bold';
+                        gamePassed.style.color = '#FFC107';
+                        gamePassed.style.letterSpacing = '10px';
+                        gamePassed.style.textShadow = '5px 5px 10px rgba(0, 0, 0, 0.7)';
+                        gamePassed.style.zIndex = '10';
+                        gamePassed.style.transform = 'translate(-50%, -50%) scaleX(2.1)';
+                        gameContainer.appendChild(gamePassed);
+                    }
+                }
+            }
+
+            if (!shadowOnPlatform) {
+                for (let platform of platforms) {
+                    if (platform.dataset.broken === 'true') continue;
+
+                    const pTop = parseInt(platform.style.top);
+                    const pBottom = pTop + 20;
+                    const pLeft = parseInt(platform.style.left);
+                    const pRight = pLeft + 90;
+
+                    if (shadowTop >= pTop && shadowTop <= pBottom &&
+                        feetZoneRight >= pLeft && feetZoneLeft <= pRight) {
+                        shadowOnPlatform = true;
+                        landedPlatform = platform;
+                        break;
+                    }
+                }
+            }
+
+            if (shadowOnPlatform) {
+                const shadowWidth = 20;
+                const shadowHeight = 5;
+                const shadowRight = shadowLeft + shadowWidth;
+                const shadowBottom = shadowTop + shadowHeight;
+
+                let platformLeft, platformRight, platformTop, platformBottom;
+                if (landedPlatform === startPlatform) {
+                    platformLeft = startPlatformLeft;
+                    platformRight = startPlatformRight;
+                    platformTop = startPlatformTop;
+                    platformBottom = startPlatformBottom;
+                } else if (landedPlatform.className === 'start-platform' && parseInt(landedPlatform.style.left) === endPlatformLeft) {
+                    platformLeft = endPlatformLeft;
+                    platformRight = endPlatformRight;
+                    platformTop = endPlatformTop;
+                    platformBottom = endPlatformBottom;
+                } else {
+                    platformLeft = parseInt(landedPlatform.style.left);
+                    platformRight = platformLeft + 90;
+                    platformTop = parseInt(landedPlatform.style.top);
+                    platformBottom = platformTop + 20;
+                }
+
+                let clipLeft = Math.max(shadowLeft, platformLeft) - shadowLeft;
+                let clipRight = Math.min(shadowRight, platformRight) - shadowLeft;
+                let clipTop = Math.max(shadowTop, platformTop) - shadowTop;
+                let clipBottom = Math.min(shadowBottom, platformBottom) - shadowTop;
+
+                clipLeft = Math.max(clipLeft, 0);
+                clipRight = Math.min(clipRight, shadowWidth);
+                clipTop = Math.max(clipTop, 0);
+                clipBottom = Math.min(clipBottom, shadowHeight);
+
+                if (clipRight > clipLeft && clipBottom > clipTop) {
+                    char.shadow.style.clipPath = `inset(${clipTop}px ${shadowWidth - clipRight}px ${shadowHeight - clipBottom}px ${clipLeft}px)`;
+                } else {
+                    char.shadow.style.display = 'none';
+                }
+            } else {
+                char.shadow.style.display = 'none';
+            }
+
+            if (char.velocityY !== 0) {
+                char.y += char.velocityY;
+                char.velocityY += gravity;
+
+                const newCharBottom = char.y + (126 * 0.8 * 0.5);
+                if (!char.isFallingPastShadow && newCharBottom > shadowTop + 10 && char.velocityY > 0) {
+                    char.isFallingPastShadow = true;
+                }
+
+                if (shadowOnPlatform && newCharBottom >= shadowTop && char.velocityY > 0 && !char.isFallingFromWalk) {
+                    if (!char.isFallingPastShadow) {
+                        char.y = shadowTop - (126 * 0.8 * 0.5);
+                        char.velocityY = 0;
+                        char.isJumping = false;
+                        char.isFallingPastShadow = false;
+                        char.isFallingFromWalk = false;
+
+                        if (landedPlatform && landedPlatform.dataset.breakable === 'true') {
+                            landedPlatform.dataset.broken = 'true';
+                            landedPlatform.style.display = 'none';
+                            createShards(landedPlatform, char.x);
+                            char.velocityY = gravity;
+                            char.isFallingFromWalk = true;
+                        }
+                    }
+                } else if (char.y >= char.jumpStartY && char.isJumping) {
+                    char.isJumping = false;
+                    char.velocityY += gravity;
+                }
+            } else if (!shadowOnPlatform) {
+                char.velocityY += gravity;
+                char.y += char.velocityY;
+                char.isFallingFromWalk = true;
+            } else {
+                char.y = shadowTop - (126 * 0.8 * 0.5);
+                char.velocityY = 0;
+                char.isFallingFromWalk = false;
+                char.isFallingPastShadow = false;
+            }
+
+            char.x = Math.max(0, Math.min(newX, totalWidth - (40 * 0.5)));
+            char.element.style.left = `${char.x}px`;
+            char.element.style.top = `${char.y}px`;
+
+            const shadowHideOffset = 50;
+            if (char.y > shadowTop - shadowHideOffset) {
+                char.shadow.style.display = 'none';
+            }
+
+            if (char.indicator) {
+                char.indicator.style.left = `${char.x + (40 * 0.5) / 2 - 7.5}px`;
+                char.indicator.style.top = `${char.y - 16}px`;
+            }
+        });
+
+        shards.forEach(shard => shard.update());
+        bloodParticles.forEach(particle => particle.update());
+
+        accumulator -= timeStep;
+    }
+
+    requestAnimationFrame(update);
+}
+
+update();
+
+document.addEventListener('mousemove', (e) => {
+    const mousePos = document.getElementById('mouse-position');
+    mousePos.textContent = `X: ${e.clientX}, Y: ${e.clientY}`;
+});
+    </script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'927039df4a0f950f',t:'MTc0MzA5MjU0MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
