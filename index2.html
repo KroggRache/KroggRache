@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procreate - New Year's Revolution</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #1a0b2e; /* Dark purple background for outrun vibe */
+            color: #fff;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* 80s Grid Background */
+        .grid-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                /* Horizon glow */
+                linear-gradient(to top, #ff00ff 0%, transparent 30%),
+                /* Grid lines */
+                linear-gradient(0deg, rgba(0, 255, 255, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.2) 1px, transparent 1px),
+                /* Base background */
+                #1a0b2e;
+            background-size: 50px 50px; /* Grid square size */
+            transform: perspective(300px) rotateX(45deg); /* Perspective for 3D effect */
+            transform-origin: bottom;
+            z-index: 0;
+        }
+
+        /* Horizon Glow */
+        .grid-background::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(to top, #ff00ff, transparent);
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 50px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+        }
+
+        nav a {
+            margin-left: 20px;
+            text-decoration: none;
+            color: #fff;
+            font-size: 16px;
+            text-shadow: 0 0 5px #00ffff;
+        }
+
+        nav a:hover {
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff;
+        }
+
+        /* Main Section */
+        .main-section {
+            padding: 50px 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .coming-soon {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            color: #fff;
+            text-shadow: 0 0 5px #ff00ff;
+        }
+
+        .headline {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #fff;
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #ff00ff;
+        }
+
+        .krogg-rache-text {
+            font-size: 120px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace; /* Retro font */
+            background: linear-gradient(90deg, #ff00ff, #00ffff); /* Neon pink to cyan gradient */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff, 0 0 30px #ff00ff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .phone-image {
+            max-width: 300px;
+            margin: -50px auto 0;
+            position: relative;
+            z-index: 2;
+        }
+
+        .phone-image img {
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 0 20px #00ffff); /* Neon glow on the phone */
+        }
+    </style>
+</head>
+<body>
+    <!-- Grid Background -->
+    <div class="grid-background"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">Procreate®</div>
+        <nav>
+            <a href="#">Procreate</a>
+            <a href="#">Procreate Pocket</a>
+            <a href="#">Support</a>
+            <a href="#">Community</a>
+        </nav>
+    </header>
+
+    <!-- Main Section -->
+    <section class="main-section">
+        <div class="coming-soon">Coming Soon</div>
+        <h1 class="headline">New Year's Revolution.</h1>
+        <div class="krogg-rache-text">KROGG RACHE</div>
+        <div class="phone-image">
+            <!-- Placeholder for the phone image -->
+            <img src="phone-placeholder.png" alt="iPhone with Procreate Pocket design">
+        </div>
+    </section>
+</body>
+</html>
