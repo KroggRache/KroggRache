@@ -54,6 +54,23 @@
             z-index: 1;
         }
 
+        /* Green Lines Overlay */
+        .green-lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                45deg, /* Tilt at 45 degrees */
+                rgba(0, 255, 0, 0.1) 0px, /* Green with 30% opacity */
+                rgba(0, 255, 0, 0.007) 5.33px, /* Line thickness */
+                transparent 2px,
+                transparent 3.3px /* Spacing between lines */
+            );
+            z-index: 1; /* On top of the grid but below content */
+        }
+
         /* Header */
         header {
             display: flex;
@@ -137,6 +154,9 @@
     <!-- Grid Background -->
     <div class="grid-background"></div>
 
+    <!-- Green Lines Overlay -->
+    <div class="green-lines"></div>
+
     <!-- Header -->
     <header>
         <div class="logo">Procreate®</div>
@@ -155,7 +175,7 @@
         <div class="krogg-rache-text">KROGG RACHE</div>
         <div class="phone-image">
             <!-- Placeholder for the phone image -->
-            <img src="phone-placeholder.png" alt="iPhone with Procreate Pocket design">
+            <img src="kroggtothefuture.png" alt="Krogg to the Future">
         </div>
     </section>
 </body>
